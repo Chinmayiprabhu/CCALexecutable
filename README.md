@@ -1,4 +1,4 @@
-# CCALexecutable
+# CCAL-Executable in Maude for paper : A Process Calculus Integrating Data Protection by Design and Default 
 Introduction
 
 This repository contains Maude formalization for a submitted work A Process Calculus Integrating Data Protection by Design and Default .
