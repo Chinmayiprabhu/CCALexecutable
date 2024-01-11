@@ -15,7 +15,7 @@ Instructions
 
 Download Maude 3.1 and the files listed on /maude in the same directory. After installing Maude, test the properties for our hygienic program, use the following commands in your terminal:
 
-sudo ./maude-Yices2.darwin64
-load Pical.maude
-load ExampleHygenic.maude
-load Example-nonHygenic.maude
+sudo ./maude-Yices2.darwin64 <br>
+load Pical.maude <br>
+load ExampleHygenic.maude <br>
+load Example-nonHygenic.maude <br>
