@@ -17,5 +17,5 @@ Download Maude 3.1 and the files listed on /maude in the same directory. After i
 
 sudo ./maude-Yices2.darwin64 <br>
 load Pical.maude <br>
-load ExampleHygenic.maude <br>
-load Example-nonHygenic.maude <br>
+load Hygenicexample.maude <br>
+load nonHygenicexample.maude <br>
