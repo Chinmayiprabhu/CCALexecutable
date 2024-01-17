@@ -1,0 +1,25 @@
+load Pical.maude
+
+mod CASE-STUDYEXAMPLE is
+protecting CONCAL-TRMS  .
+protecting CONCAL-SORTS .
+protecting CONCAL-PROCESS .
+
+ops doctor nurse patient lab  : -> Entity .
+ops Alice Bob Carl : -> Uid .
+ops trt lab Hosp : -> Purpose .
+ops pd pd1 pd2 : -> PrivData .
+ops G : -> clk .
+
+op CN : -> ConsentSet .
+eq CN = (Alice -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)): 100) ,
+        (Bob -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 200),
+        (Carl -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 300) .
+op DB : -> Database .
+
+eq DB = Alice -> (pd) ;; Bob -> (pd1) ;; Carl -> (pd2) .
+
+op S : -> System .
+
+eq S = (G , < CN , DB >) -> doctor [[ _ ]] || _[[ _ ]] || _[[ _ ]] .
+endm

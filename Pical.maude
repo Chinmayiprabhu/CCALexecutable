@@ -1,0 +1,625 @@
+load prelude.maude
+fmod DATA is
+  pr QID .
+  pr STRING .
+  pr INT .
+  pr NAT .
+  pr FLOAT .
+sorts Uid Data Expr Alpha NonPrivData PrivData Vid  Policy Purpose Entity Action  .
+subsort NonPrivData  < Data .
+subsort PrivData < Data .
+subsort Data < Expr .
+subsort Qid < Vid < Expr .
+subsort Expr < Alpha .
+subsort Policy < NonPrivData .
+sorts  ExprList DataList Tags NeTagsList TagsList VidList NeExprList NeDataList EidList OidSet .
+subsort Vid < VidList < ExprList .
+subsort Tags < NeTagsList < TagsList .
+subsort Expr < NeExprList < ExprList .
+subsort Data < NeDataList < DataList .
+subsort DataList < ExprList .
+subsort NeDataList < NeExprList .
+op noent : -> Entity .
+op emp : -> DataList [ctor] .
+op _,,_ : ExprList ExprList -> ExprList [ctor assoc id: emp prec 27 format (d r os d d)] .
+op _,,_ : NeExprList ExprList -> ExprList [ctor ditto].
+op _,,_ : ExprList NeExprList -> ExprList [ctor ditto].
+op _,,_ : NeDataList DataList -> DataList [ctor ditto] .
+op _,,_ : DataList NeDataList -> DataList [ctor ditto] .
+op _,,_ : DataList DataList -> DataList [ctor ditto ] .
+*** Variable references are named by Qids directly.
+*** Instance variable references are decorated:
+
+op @_ : Qid -> Vid [ctor] .
+
+
+op nothing : -> NonPrivData [ctor] .
+op user : Qid -> Uid [ctor] .
+***op Purpose : Qid -> Purpose [ctor] .
+***op noUser : -> NonPrivData [ctor] .
+
+***op _(_) : Qid DataList -> Data . *** function application
+op _[_] : String ExprList -> Expr [ctor prec 12 format (! o d d d)] .
+op _[_] : String DataList -> Data [ctor prec 12 format (! o d d d)] .
+***converstion of data types into sort DATA
+
+op null : -> NonPrivData [ctor] .
+op usr : Nat -> Uid  [ctor] .
+op int(_)  : Int       -> NonPrivData [ctor format(o o ! o o)] .
+op float(_) : Float    -> NonPrivData [ctor format(o o ! o o)] .
+op str(_)  : String    -> NonPrivData [ctor format(o o ! o o)] .
+op bool(_) : Bool      -> NonPrivData [ctor format(o o ! o o)] .
+op isnothing : DataList -> Bool .
+
+***guard expression
+op ?(_)  : Expr -> Expr [ctor format (! o d d d)] .
+***op $error : String -> Expr [ctor format (r o)] .
+
+*** Reconversion for evaluation
+op _asInt             : Data -> Int .
+eq int(I)  asInt      = I .
+op _asNat             : Data -> Nat .
+eq int(N)  asNat      = N .
+op _asBool            : Data -> Bool .
+eq bool(B) asBool     = B .
+op _asStr             : Data -> String .
+eq str(S)  asStr      = S .
+
+*** Reconversion for evaluation
+op _asPaolBool     : Bool -> Data .
+***eq true asPaolBool  = true .
+
+var N : Nat .    var I : Int .
+var B : Bool .   vars S  S' : String . vars Q Q' : Qid .
+
+var DL : DataList .
+vars D D'     : Data .
+vars E E'     : Expr .
+vars L L' L'' : ExprList .
+op _[_] : String ExprList -> Expr [ctor prec 12 format (! o d d d)] .
+op _[_] : String DataList -> Data [ctor prec 12 format (! o d d d)] .
+endfm
+
+view Vid from TRIV to DATA is
+   sort Elt to Vid .
+endv
+
+view Data from TRIV to DATA is
+   sort Elt to Data .
+endv
+
+view Expr from TRIV to DATA is
+   sort Elt to Expr .
+endv
+
+view Uid from TRIV to DATA is
+   sort Elt to Uid .
+endv
+
+view Entity from TRIV to DATA is
+  sort Elt to Entity .
+endv
+
+
+view Purpose from TRIV to DATA is
+  sort Elt to Purpose .
+endv
+
+
+view Action from TRIV to DATA is
+  sort Elt to Action .
+endv
+
+view Policy from TRIV to DATA is
+  sort Elt to Policy .
+endv
+
+
+fmod PURPOSE-SET is
+  protecting DATA .
+  protecting SET{Purpose} * (sort NeSet{Purpose} to NePurposeSet,
+                         sort Set{Purpose} to PurposeSet) .
+
+subsort Purpose < NePurposeSet < PurposeSet .
+
+endfm
+
+fmod ACTION-SET is
+  protecting DATA .
+  protecting SET{Action} * (sort NeSet{Action} to NeActionSet,
+                         sort Set{Action} to ActionSet) .
+  subsort Action < NeActionSet < ActionSet .
+
+endfm
+
+fmod ENTITY-SET is
+  protecting DATA .
+  protecting SET{Entity} * (sort NeSet{Entity} to NeEntitySet,
+                         sort Set{Entity} to EntitySet) .
+  subsort Entity < NeEntitySet < EntitySet .
+
+endfm
+
+fmod UID-SET is
+protecting DATA .
+protecting SET{Uid} * (sort NeSet{Uid} to NeUidSet,
+                         sort Set{Uid} to UidSet) .
+  subsort Uid < NeUidSet < UidSet .
+
+endfm
+
+
+
+
+
+fmod PRIV_DATA is
+  pr DATA .
+
+  ---these set operators are renamed
+	---for compatibility with further imports of supersort sets
+  protecting PURPOSE-SET .
+  protecting ACTION-SET .
+  protecting ENTITY-SET .
+  protecting UID-SET .
+  subsort Policy < Data . *** dont do this yet
+  subsort Tags < Expr .
+
+  ***var DS : SET{Data} .
+
+  var U U1 : UidSet .
+  var P P1 : PurposeSet .
+  var E : Expr .
+  var t t1 : Tags .
+  vars NtL NtL1 : NeTagsList .
+  op (_,_,_) : EntitySet ActionSet PurposeSet  -> Policy .
+  op tags : UidSet PurposeSet  -> Tags .
+  op PrivateData(_,_) : Expr Tags -> PrivData .
+  op Users(_) : TagsList -> UidSet .
+  op Purposes(_) : TagsList -> PurposeSet .
+  eq Users(tags(U, P) ++ tags (U1 , P1)) = union(U, U1) .
+  eq Users(tags(U,P))  = U .
+  eq Purposes(tags(U,P))  = P .
+  eq Purposes(tags(U, P) ++ tags (U1 , P1))  = union(P, P1) .
+  op getTags : ExprList -> NeTagsList .
+  eq getTags(PrivateData(E,t)) = t .
+
+
+  op  _++_ : NeTagsList  NeTagsList -> NeTagsList [ctor] .
+  eq tags(U, P) ++ tags (U1 , P1) = tags (union( U, U1) , intersection (P, P1)) .
+  op <_,,_> : TagsList TagsList -> TagsList [ctor] .
+  op _appen_ : NonPrivData NonPrivData -> NonPrivData [ctor] .
+  op _appen_ : PrivData NonPrivData -> PrivData [ctor] .
+  op _appen_ : NonPrivData PrivData -> PrivData [ctor] .
+  op _appen_ : PrivData PrivData -> PrivData [ctor] .
+  op _(_) : String ExprList -> Expr .
+
+endfm
+
+
+
+
+*** Binding variables to values ***
+***uses MAP from prelude
+fmod PAOL-SUBST is
+  including PRIV_DATA .
+  extending MAP{Vid, Data} * (sort Map{Vid,Data} to SSubst,
+                              sort Entry{Vid,Data} to Binding,
+                              op empty : -> Map{Vid,Data} to noSubst,
+                              op insert : Vid Data Map{Vid,Data} -> Map{Vid,Data} to $insert ) .
+
+op dom : Vid Subst -> Bool .
+op remove : Vid Subst -> Subst .
+sort Subst .
+subsort SSubst < Subst .
+*** Non-comm composition operator for substitutions
+vars V V' : Vid .
+var VL : VidList .
+var DL : DataList .
+var D : Data .
+vars S1 S2 : Subst .
+var S3 : SSubst .
+
+op _::_ : Subst Subst -> Subst [assoc] .
+eq (S1 :: S2)[V] = if $hasMapping(S2, V) then S2[V] else S1[V] fi .
+
+eq dom(V, noSubst) = false .
+eq dom(V, ((V' |-> D), S1)) = if V == V' then true else dom(V, S1) fi .
+eq dom(V, S1 :: S2) = dom(V, S1) or dom(V, S2) .
+
+eq remove(V, (S1, V |-> D)) =  S1 .
+eq remove(V, S1) =  S1 [owise] .
+
+
+op hasMapping : Subst Vid -> Bool .
+eq hasMapping(S2, V) = $hasMapping(S2, V) .
+eq hasMapping(S1 :: S2, V) = $hasMapping(S2, V) or hasMapping(S1, V) .
+
+op insert : Vid Data Subst -> Subst .
+eq insert(V, D, S2) = $insert(V, D, S2) .
+eq insert(V, D, S1 :: S2) = S1 :: $insert(V, D, S2) .
+
+*** Replace an existing binding even in the middle of the SSubst stack.
+op update : Vid Data Subst -> Subst .
+eq update(V, D, S1 :: S2) = if $hasMapping(S2, V) then S1 :: $insert(V, D, S2)
+    else update(V, D, S1) :: S2 fi .
+ceq update(V, D, S2) = $insert(V, D, S2)
+if $hasMapping(S2, V) .       *** Block if no mapping exists.
+
+--- Create a substitution from a list of identifiers and data values.
+op createSubst : VidList DataList -> SSubst .
+eq createSubst(VL, DL) = $createSubst(noSubst, VL, DL) .
+op $createSubst : SSubst VidList DataList -> SSubst .
+***eq $createSubst(S2, noVid, emp) = S2 .
+***eq $createSubst(S2, (V, VL), (D :: DL)) = $createSubst($insert(V, D, S2), VL, DL) .
+
+endfm
+
+
+fmod CONSENT is
+protecting PRIV_DATA .
+protecting SET{Policy} * (sort NeSet{Policy} to NeSetPl,
+                            sort Set{Policy} to SetPl) .
+sort Retention .
+subsort Nat < Retention .
+sort Consent NeConsentSet ConsentSet .
+subsort Consent < NeConsentSet < ConsentSet .
+
+op (_->_:_) : Uid SetPl Retention ->  Consent [ctor ] .
+op none : -> ConsentSet [ctor] . *** Empty multiset
+op _,_ : ConsentSet ConsentSet -> ConsentSet [ctor assoc comm id: none] .
+op _,_ : NeConsentSet NeConsentSet -> NeConsentSet [ctor assoc comm id: none] .
+op deleteC : Consent ConsentSet -> ConsentSet . *** Remove ONE occurrence
+op _in_ : Consent ConsentSet -> Bool .
+var C : Consent . var CnSet : ConsentSet .
+eq deleteC(C , (C,CnSet)) = deleteC(C , CnSet) .
+eq deleteC(C, CnSet) = CnSet [owise] .
+eq C in (C , CnSet) = true .
+eq C in CnSet = false [owise] .
+op insertC : Consent ConsentSet -> ConsentSet .
+eq insertC(C , CnSet) = C , CnSet .
+
+endfm
+
+
+fmod CENTRAL-DATABASE is
+protecting PRIV_DATA .
+
+sort Database Record .
+subsort Record < Database .
+
+op _ -> _ : Uid DataList -> Record [ctor] .
+op nodata : -> Database [ctor] .
+op _;;_ : Database Database -> Database .
+var D : Data .
+var U : Uid .
+var DL : DataList .
+var R : Record . var DB : Database .
+op delrec(_;_) : Record Database -> Database .
+eq delrec(R ;(R ;; DB)) = delrec(R ; DB) .
+eq delrec(R ; DB) = DB [owise] .
+op inrec(_;_) : Record Database -> Database .
+eq inrec(R ; DB) = R ;; DB .
+
+var db db1 : Database .
+op uniondb(_;;_) : Database Database -> Database .
+eq uniondb(db ;; db1) = db ;; db1 .
+
+endfm
+
+
+fmod GCLock is
+
+
+
+
+sort clk .
+
+endfm
+
+
+
+
+fmod CONCAL-SORTS is
+	protecting PRIV_DATA .
+  protecting CONSENT .
+  protecting CENTRAL-DATABASE .
+  protecting GCLock .
+--------------- Substitution ---------------
+  sorts ChanId IndexedChan Channel  .
+  subsort Qid < ChanId .
+  subsorts IndexedChan Data < Channel .
+  sort Sub .
+
+  vars X Y : Channel .
+  vars A B : ChanId .
+  var N : Nat .
+  var SUBST : Sub .
+
+  op empty : -> Channel .
+  sort ChanSet .
+  subsort Channel < ChanSet .
+
+  op _{_} : ChanId Nat -> IndexedChan [ctor prec 13].
+
+  op IDof : IndexedChan -> ChanId .
+  eq IDof(A{N}) = A .
+
+  op [_:=_] : ChanId Channel -> Sub [ctor prec 15] .
+  op [shiftup_] : ChanId -> Sub [ctor prec 15] .
+  op [shiftdown_] : ChanId -> Sub [ctor prec 15] .
+  op [lift__] : ChanId Sub -> Sub [ctor prec 15] .
+
+  op __ : Sub Channel -> Channel [prec 16] .
+  eq [A := X] A{0} = X .
+  eq [A := X] A{s N} = A{N} .
+  eq [A := X] Y = Y [owise] .
+
+  eq [shiftup A] A{N} = A{s N} .
+  eq [shiftup A] Y = Y [owise] .
+
+  eq [shiftdown A] A{s N} = A{N} .
+  eq [shiftdown A] Y = Y [owise] .
+
+  eq [lift A SUBST] A{0} = A{0} .
+  eq [lift A SUBST] A{s N} = [shiftup A] (SUBST A{N}) .
+  eq [lift A SUBST] Y = [shiftup A] (SUBST Y) [owise] .
+
+  op __ : Sub ChanSet -> ChanSet [ditto] .
+	eq SUBST empty = empty .
+  eq SUBST (X, XS:ChanSet) = (SUBST X), SUBST XS:ChanSet .
+
+
+endfm
+
+
+view Channel from TRIV to CONCAL-SORTS  is
+	sort Elt to Channel .
+endv
+
+
+
+fmod CONCAL-TRMS is
+including CONCAL-SORTS  .
+vars E : EntityChan .
+vars T T' : Trm .
+
+--------------- Channels ---------------
+
+  sort  EntityChan UserChan Databasechan Trm Guard .
+  subsort EntityChan UserChan Databasechan Data < Channel .
+  ***subsort Channel < Data .
+
+  op _{_} : Qid Nat -> Channel [prec 1] .
+  op _^_ : Channel Entity -> EntityChan [ctor] .
+  op _^_ : Channel Uid -> UserChan [ctor] .
+  ops True False : -> Data [ctor] .
+  ***empty process
+  op nil : -> Trm [ctor] .
+  ***parallel process
+  op _ || _ : Trm Trm -> Trm [ctor] .
+  ***input process
+  op _?(_) : Channel Channel -> Guard [ctor] .
+  ***out process
+  op _!(_) : EntityChan Channel -> Guard [ctor] .
+  ***consent process
+  op _addCon(_) : Channel Policy -> Guard [ctor] .
+  op _rmvCon(_) : Channel Policy -> Guard [ctor] .
+  op _addRet(_) : Channel Nat -> Guard [ctor] .
+  op _updRet(_) : Channel Nat -> Guard [ctor] .
+  *** db process
+  op _<- store(_) : Databasechan PrivData -> Guard [ctor] .
+  op _<- delete(_) : Databasechan PrivData -> Guard [ctor] .
+  op _<- getdata(_) : Databasechan Tags -> Guard [ctor] .
+  op _._ : Guard Trm -> Trm [ctor] .
+  ***replication process
+  op * _ : Trm -> Trm [ frozen prec 17] .
+  ***name binding process
+  op (v_:_) : Channel Trm -> Trm .
+
+  sort TrmProcess .
+
+  op _[[ _ ]] : Entity Trm  -> TrmProcess [ctor] .
+  op _[[ _ ]] : Uid Trm -> TrmProcess [ctor] .
+  op _ || _ : TrmProcess TrmProcess -> TrmProcess [ctor] .
+  op New _(_) : EntityChan TrmProcess -> TrmProcess [ctor] .
+
+ ***Global state
+
+  sort System .
+  subsort TrmProcess < System .
+
+  op (_,<_,_>) -> _ : clk ConsentSet Database TrmProcess -> System [ctor] .
+
+var SUBST : Sub .
+vars X Y : Channel .
+vars C C' : ChanSet .
+vars A B : ChanId .
+
+op union : ChanSet ChanSet -> ChanSet .
+eq union(C, C') = C, C' .
+
+op insert : Channel ChanSet -> ChanSet .
+eq insert(X, empty) = X .
+eq insert(X, C ) = (X, C)  .
+
+op delete : Channel ChanSet -> ChanSet .
+eq delete(X, X) = empty .
+eq delete(X, (X, C)) = delete(X, C) .
+eq delete(X, C) = C [owise] .
+
+  ops fn : Trm -> ChanSet .
+  	eq fn(T) = empty .
+  	eq fn(* T) = fn(T) .
+  	eq fn(T || T') = union(fn(T), fn(T')) .
+  	eq fn((v A : T)) = [shiftdown A] delete(A{0}, fn(T)) .
+  	eq fn( X ? (A). T) = insert(X, [shiftdown A] delete(A{0}, fn(T))) .
+  	eq fn( X ! (Y). T) = insert(X, insert(Y, fn(T))) .
+  	***eq fn([X == Y] (P1 ; P2)) =
+  	***insert(X, insert(Y, union(fn(P1), fn(P2)))) .
+
+  op __ : Sub Trm -> Trm [prec 16] .
+  eq SUBST nil = nil .
+	eq SUBST (* T) = * (SUBST T) .
+  eq SUBST (T || T') = (SUBST T) || (SUBST T') .
+  eq SUBST (v A : T) = v A : [lift A SUBST] T .
+	eq SUBST ( X ? (A). T) = (SUBST X) ? (A). [lift A SUBST] T .
+  eq SUBST (X ! (Y). T) = (SUBST X) ! (SUBST Y). SUBST T .
+
+endfm
+
+
+
+fmod AUXILIARY-FUNC is
+protecting PRIV_DATA .
+protecting CONSENT .
+protecting CENTRAL-DATABASE .
+
+var eta : Entity .
+var PSet : SetPl .
+vars t t' : Tags .
+var US : UidSet .
+var U U1 : Uid .
+var P P' : PurposeSet .
+var ES : EntitySet .
+var AcSet : ActionSet .
+var R R1 : Retention .
+var CnSet : ConsentSet .
+var DL : DataList .
+ops Use Collect Store Transfer Delete : -> ActionSet .
+op users(_) : Tags -> UidSet [ctor ] .
+eq users(tags(U,P)) = U .
+
+op purposes(_) : Tags -> PurposeSet [ctor ] .
+eq purposes(tags(U,P)) = P .
+
+op Act(_,_,_,_) : ConsentSet Entity Uid PurposeSet -> ActionSet .
+ceq Act(((U -> ((ES, AcSet, P), PSet) : R),CnSet), eta,U1, P') = AcSet if (eta in ES) /\ P' subset P /\ U == U1 .
+eq Act(((U -> ((ES, AcSet, P), PSet) : R),CnSet), eta,U1, P') = empty [owise] .
+
+op A(_,_,_,_) : ConsentSet Entity UidSet PurposeSet  -> ActionSet .
+ceq A( CnSet,eta,(U1, US), P) = intersection (Act( CnSet,eta,U1,P ), Act( CnSet,eta,US,P ) ) if P =/= empty /\ (U1, US) =/= empty .
+ceq A( CnSet,eta,(U1, US), P) = ( Use, Collect, Store, Transfer, Delete ) if P == empty /\ (U1, US) == empty .
+eq  A( CnSet,eta,(U1, US), P) = empty [owise] .
+
+op _inCons_ : Uid ConsentSet -> Bool .
+eq U inCons ( (U -> PSet : R) , CnSet) = true .
+eq U inCons (CnSet) = false [owise] .
+
+***database functions
+
+var D : Data .
+var Db : Database .
+op datamap (_,_,_) : Uid Data Database -> Database [ctor] .
+ceq datamap(U1, D, (U -> DL) ;; Db ) = (U -> union(DL, D)) ;; Db if U1 == U .
+eq datamap(U1, D, (U -> DL) ;; Db ) = (U -> DL) ;; Db [owise] .
+
+op Adddata (_,_,_) : UidSet Data Database -> Database [ctor] .
+eq Adddata((U1,US), D, Db ) =  uniondb(datamap(U1, D, Db ) ;; datamap(US, D, Db )) .
+***ceq Adddata((U1,US), D, Db ) =  false [owise] .
+***Delete functions
+op delmap(_,_) : Uid Database -> Database [ctor] .
+ceq delmap(U1, ((U -> DL) ;; Db)) = ((U -> emp) ;; Db) if U1 == U .
+eq delmap(U1, ((U -> DL) ;; Db)) = ((U -> DL) ;; Db) [owise] .
+
+***op checkRet
+
+endfm
+
+mod CONCAL-PROCESS is
+protecting CONCAL-SORTS .
+protecting AUXILIARY-FUNC .
+protecting CONCAL-TRMS .
+
+vars X Y Z : Channel .
+vars A B : ChanId .
+var SUBST : Sub .
+var D : Data .
+vars XS YS : ChanSet .
+vars T T1 T2 T3 T4 : Trm .
+
+------------- Labels -------------
+sorts Label Conlabel Dblabel Timelabel Stdlabel .
+
+subsort  Conlabel Dblabel Timelabel Stdlabel < Label .
+
+subsort Label < Guard .
+var l l1 l2 l3 : Label .
+
+op silent : -> Label .
+op e#T : -> Timelabel .
+op in _(_) : Channel ChanId -> Label .
+op out _(_) : EntityChan Channel -> Label .
+op addCon_(_) : Channel Policy -> Label .
+op rmvCon_(_) : Channel Policy -> Label  .
+op addRet_(_) : Channel Nat -> Label  .
+op updRet_(_) : Channel Nat -> Label  .
+op store_(_) : Databasechan PrivData -> Label  .
+op delete_(_) : Databasechan PrivData -> Label  .
+op getdata_(_) : Databasechan Tags -> Label  .
+
+var P : Policy .
+var Pd : PrivData .
+var tg : Tags .
+var E E' : Entity .
+var N : Nat .
+var CnSet : ConsentSet .
+var Db Db' : Database .
+var gclk  gclk' : clk .
+var e : Expr .
+var US : UidSet .
+var PrSet : PurposeSet .
+var p p1 : Policy .
+op __ : Sub Label -> Label [prec 22] .
+	eq SUBST silent = silent .
+  eq SUBST ( in X(A)) = in SUBST X(A) .
+  eq SUBST ( out X(Y)) = out SUBST X(SUBST Y) .
+  eq SUBST ( addCon X(P)) = addCon X(P) .
+  eq SUBST ( rmvCon X(P)) = rmvCon X(P) .
+  eq SUBST ( addRet X(N)) = addRet X(N) .
+  eq SUBST ( updRet X(N)) = updRet X(N) .
+  eq SUBST ( store X(Pd)) = store X(Pd) .
+  eq SUBST ( delete X(Pd)) = delete X(Pd) .
+  eq SUBST ( getdata X(tg)) = getdata X(tg) .
+
+------------- Labelled transitions -------------
+
+op {_}_ : Label Trm -> Trm .
+
+crl [l-Inp] :
+  (gclk, < CnSet,Db > ) -> E [[ X ? (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {in X(PrivateData(e,tg))}  T ]]
+  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect ) in A(CnSet,E,US, PrSet) .
+
+crl [l-out] :
+  (gclk, < CnSet,Db > ) -> E [[ X ! (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {out X(PrivateData(e,tg))}  T ]]
+  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect , Transfer ) in A(CnSet,E,US, PrSet) .
+
+***rl	[Rep]	: (gclk, < CnSet,Db > ) -> E [[ * T ]]  => (gclk, < CnSet,Db > ) -> E [[ {l} T1 || * T ]] .
+***if T => {l} T1 .
+
+***rl [CommP]	: (gclk, < CnSet,Db > ) -> E [[ T3 || T4 ]]  => (gclk, < CnSet,Db > ) -> E [[ {silent} ([A := Z] T) || T1 ]] .
+	***if T3 => {in X(A)} T /\ T4 => {out X(Z)} T1 .
+
+crl [l-storedata] :
+    (gclk, < CnSet,Db > ) -> E [[ X <- store(PrivateData(e,tg)) . T ]]  => (gclk, < CnSet, Adddata (US,PrivateData(e,tg), Db ) > ) -> E [[ {store X(PrivateData(e,tg))}  T ]]
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) .
+
+crl [l-deletedata] :
+    (gclk, < CnSet,Db > ) -> E [[ X <- delete(PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {store X(PrivateData(e,tg))}  T ]]
+        if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Delete ) in A(CnSet,E,US, PrSet) .
+
+crl [l-getdata] :
+    (gclk, < CnSet,Db > ) -> E [[ X <- getdata(tg) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {getdata X(tg)}  T ]]
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) .
+
+rl [l-Addpol] :
+    (gclk, < CnSet, Db > ) -> E [[ X addCon(p) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {addCon X(p)}  T ]] .
+
+rl [l-rmvpol] :
+    (gclk, < CnSet,Db > ) -> E [[ X rmvCon(p) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {rmvCon X(p)}  T ]] .
+
+rl [l-AddRet] :
+    (gclk, < CnSet,Db > ) -> E [[ X addRet(N) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {addRet X(N)}  T ]] .
+rl [l-RmvRet] :
+    (gclk, < CnSet,Db > ) -> E [[ X updRet(N) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {updRet X(N)}  T ]] .
+
+endm
