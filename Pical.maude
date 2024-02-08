@@ -31,8 +31,6 @@ op _,,_ : DataList DataList -> DataList [ctor ditto ] .
 *** Instance variable references are decorated:
 
 op @_ : Qid -> Vid [ctor] .
-
-
 op nothing : -> NonPrivData [ctor] .
 op user : Qid -> Uid [ctor] .
 ***op Purpose : Qid -> Purpose [ctor] .
@@ -53,17 +51,7 @@ op isnothing : DataList -> Bool .
 
 ***guard expression
 op ?(_)  : Expr -> Expr [ctor format (! o d d d)] .
-***op $error : String -> Expr [ctor format (r o)] .
-
-*** Reconversion for evaluation
-op _asInt             : Data -> Int .
-eq int(I)  asInt      = I .
-op _asNat             : Data -> Nat .
-eq int(N)  asNat      = N .
-op _asBool            : Data -> Bool .
-eq bool(B) asBool     = B .
-op _asStr             : Data -> String .
-eq str(S)  asStr      = S .
+op $error : String -> Expr [ctor format (r o)] .
 
 *** Reconversion for evaluation
 op _asPaolBool     : Bool -> Data .
@@ -76,8 +64,6 @@ var DL : DataList .
 vars D D'     : Data .
 vars E E'     : Expr .
 vars L L' L'' : ExprList .
-op _[_] : String ExprList -> Expr [ctor prec 12 format (! o d d d)] .
-op _[_] : String DataList -> Data [ctor prec 12 format (! o d d d)] .
 endfm
 
 view Vid from TRIV to DATA is
@@ -182,8 +168,6 @@ fmod PRIV_DATA is
   eq Purposes(tags(U, P) ++ tags (U1 , P1))  = union(P, P1) .
   op getTags : ExprList -> NeTagsList .
   eq getTags(PrivateData(E,t)) = t .
-
-
   op  _++_ : NeTagsList  NeTagsList -> NeTagsList [ctor] .
   eq tags(U, P) ++ tags (U1 , P1) = tags (union( U, U1) , intersection (P, P1)) .
   op <_,,_> : TagsList TagsList -> TagsList [ctor] .
@@ -195,63 +179,80 @@ fmod PRIV_DATA is
 
 endfm
 
-
-
-
 *** Binding variables to values ***
-***uses MAP from prelude
-fmod PAOL-SUBST is
+fmod CCAL-SUBST is
   including PRIV_DATA .
-  extending MAP{Vid, Data} * (sort Map{Vid,Data} to SSubst,
-                              sort Entry{Vid,Data} to Binding,
-                              op empty : -> Map{Vid,Data} to noSubst,
-                              op insert : Vid Data Map{Vid,Data} -> Map{Vid,Data} to $insert ) .
+	extending SET{Vid} * (
+		op _`,_           to __ ,
+		op empty		 to empty-X ,
+		op insert        to insert-X ,
+		op delete        to delete-X ,
+		op _in_          to _X-in_ ,
+		op |_|           to card-X ,
+		op $card         to $card-X ,
+		op union         to union-X ,
+		op intersection  to intersection-X ,
+		op $intersect    to $intersect-X ,
+		op _\_           to _diff-X_ ,
+		op $diff         to $diff-X ,
+		op _subset_      to _subset-X_ ,
+		op _psubset_     to _psubset-X_
+	) .
+	extending SET{Data} * (
+		op _`,_           to __ ,
+		op empty         to empty-V ,
+		op insert        to insert-V ,
+		op delete        to delete-V ,
+		op _in_          to _V-in_ ,
+		op |_|           to card-V ,
+		op $card         to $card-V ,
+		op union         to union-V ,
+		op intersection  to intersection-V ,
+		op $intersect    to $intersect-V ,
+		op _\_           to _diff-V_ ,
+		op $diff         to $diff-V ,
+		op _subset_      to _subset-V_ ,
+		op _psubset_     to _psubset-V_
+	) .
+	---these set operators are renamed
+	---for compatibility with further imports of supersort sets
+  sort Condition .
+	vars X Y : Vid .
+	vars XS YS : Set{Vid} .
+	vars VAL VAL1 VAL2 VAL' : Data .
+	vars COND COND' COND1 COND2 : Condition .
 
-op dom : Vid Subst -> Bool .
-op remove : Vid Subst -> Subst .
-sort Subst .
-subsort SSubst < Subst .
-*** Non-comm composition operator for substitutions
-vars V V' : Vid .
-var VL : VidList .
-var DL : DataList .
-var D : Data .
-vars S1 S2 : Subst .
-var S3 : SSubst .
+	op domain : Vid -> Set{Data} .
+	op var : Data -> Vid .
+	op _==_ : Vid Data -> [Condition] [ctor prec 14].
+	op _=/=_ : Vid Data -> [Condition] [ctor prec 14].
+	cmb X == VAL : Condition if VAL V-in domain(X) .
+	cmb X =/= VAL : Condition if VAL V-in domain(X) .
 
-op _::_ : Subst Subst -> Subst [assoc] .
-eq (S1 :: S2)[V] = if $hasMapping(S2, V) then S2[V] else S1[V] fi .
+	op _/\_ : Condition Condition -> Condition
+		[ctor assoc comm prec 15].
 
-eq dom(V, noSubst) = false .
-eq dom(V, ((V' |-> D), S1)) = if V == V' then true else dom(V, S1) fi .
-eq dom(V, S1 :: S2) = dom(V, S1) or dom(V, S2) .
+	op vars : Condition -> Set{Vid} .
+	eq vars(X == VAL) = X .
+	eq vars(X =/= VAL) = X .
+	eq vars(COND1 /\ COND2) = union-X(vars(COND1), vars(COND2)) .
 
-eq remove(V, (S1, V |-> D)) =  S1 .
-eq remove(V, S1) =  S1 [owise] .
+	op _<=_ : Condition Condition -> Bool .
+	eq COND <= COND = true .
+	eq COND <= COND' = vars(COND') subset-X vars(COND)
+		and $stricter-than(COND, COND', vars(COND')) .
+	op $stricter-than : Condition Condition Set{Data} -> Bool .
+	eq $stricter-than(COND, COND', empty-X) = true .
+	eq $stricter-than(COND, COND', (X XS)) =
+		allowed(COND, X) subset-V allowed(COND', X)
+		and $stricter-than(COND, COND', XS) .
 
-
-op hasMapping : Subst Vid -> Bool .
-eq hasMapping(S2, V) = $hasMapping(S2, V) .
-eq hasMapping(S1 :: S2, V) = $hasMapping(S2, V) or hasMapping(S1, V) .
-
-op insert : Vid Data Subst -> Subst .
-eq insert(V, D, S2) = $insert(V, D, S2) .
-eq insert(V, D, S1 :: S2) = S1 :: $insert(V, D, S2) .
-
-*** Replace an existing binding even in the middle of the SSubst stack.
-op update : Vid Data Subst -> Subst .
-eq update(V, D, S1 :: S2) = if $hasMapping(S2, V) then S1 :: $insert(V, D, S2)
-    else update(V, D, S1) :: S2 fi .
-ceq update(V, D, S2) = $insert(V, D, S2)
-if $hasMapping(S2, V) .       *** Block if no mapping exists.
-
---- Create a substitution from a list of identifiers and data values.
-op createSubst : VidList DataList -> SSubst .
-eq createSubst(VL, DL) = $createSubst(noSubst, VL, DL) .
-op $createSubst : SSubst VidList DataList -> SSubst .
-***eq $createSubst(S2, noVid, emp) = S2 .
-***eq $createSubst(S2, (V, VL), (D :: DL)) = $createSubst($insert(V, D, S2), VL, DL) .
-
+	op allowed : Condition Vid -> Set{Data} .
+	eq allowed(X == VAL, X) = VAL .
+	eq allowed(X == VAL, Y) = domain(Y) .
+	eq allowed(X =/= VAL, X) = delete-V(VAL, domain(X)) .
+	eq allowed(X =/= VAL, Y) = domain(Y) .
+	eq allowed(COND1 /\ COND2, X) = intersection-V(allowed(COND1, X), allowed(COND2, X)) .
 endfm
 
 
@@ -270,16 +271,19 @@ op _,_ : ConsentSet ConsentSet -> ConsentSet [ctor assoc comm id: none] .
 op _,_ : NeConsentSet NeConsentSet -> NeConsentSet [ctor assoc comm id: none] .
 op deleteC : Consent ConsentSet -> ConsentSet . *** Remove ONE occurrence
 op _in_ : Consent ConsentSet -> Bool .
+op _polin_ : Policy SetPl -> Bool .
+var P : Policy . var PS : SetPl .
 var C : Consent . var CnSet : ConsentSet .
 eq deleteC(C , (C,CnSet)) = deleteC(C , CnSet) .
 eq deleteC(C, CnSet) = CnSet [owise] .
 eq C in (C , CnSet) = true .
 eq C in CnSet = false [owise] .
+eq P polin (P , PS) =  true .
+eq P polin PS =  false [owise] .
 op insertC : Consent ConsentSet -> ConsentSet .
 eq insertC(C , CnSet) = C , CnSet .
 
 endfm
-
 
 fmod CENTRAL-DATABASE is
 protecting PRIV_DATA .
@@ -300,6 +304,10 @@ eq delrec(R ; DB) = DB [owise] .
 op inrec(_;_) : Record Database -> Database .
 eq inrec(R ; DB) = R ;; DB .
 
+op inDB(_;_) : Data Database -> Bool .
+eq inDB (D ; (U -> (D,,DL))) = true .
+eq inDB (D ; (U -> (DL))) = false [owise] .
+
 var db db1 : Database .
 op uniondb(_;;_) : Database Database -> Database .
 eq uniondb(db ;; db1) = db ;; db1 .
@@ -308,15 +316,14 @@ endfm
 
 
 fmod GCLock is
-
-
-
-
-sort clk .
-
+including DATA .
+sorts Instances Labels Ticks clk Date .
+subsort Labels < Date .
+sort month day year .
+subsort month day year < Nat .
+op date<_,_,_> : day month year -> Date .
+op clk<_,_,_> : Instances Labels Ticks -> clk .
 endfm
-
-
 
 
 fmod CONCAL-SORTS is
@@ -376,19 +383,21 @@ view Channel from TRIV to CONCAL-SORTS  is
 	sort Elt to Channel .
 endv
 
-
-
 fmod CONCAL-TRMS is
 including CONCAL-SORTS  .
 vars E : EntityChan .
 vars T T' : Trm .
+var SUBST : Sub .
+vars X Y : Channel .
+vars C C' : ChanSet .
+vars A B : ChanId .
 
 --------------- Channels ---------------
 
   sort  EntityChan UserChan Databasechan Trm Guard .
+  subsort Qid < Channel .
   subsort EntityChan UserChan Databasechan Data < Channel .
   ***subsort Channel < Data .
-
   op _{_} : Qid Nat -> Channel [prec 1] .
   op _^_ : Channel Entity -> EntityChan [ctor] .
   op _^_ : Channel Uid -> UserChan [ctor] .
@@ -396,9 +405,11 @@ vars T T' : Trm .
   ***empty process
   op nil : -> Trm [ctor] .
   ***parallel process
-  op _ || _ : Trm Trm -> Trm [ctor] .
+  op _ | _ : Trm Trm -> Trm [ctor] .
   ***input process
   op _?(_) : Channel Channel -> Guard [ctor] .
+  ***binding to the closest binder
+
   ***out process
   op _!(_) : EntityChan Channel -> Guard [ctor] .
   ***consent process
@@ -411,17 +422,55 @@ vars T T' : Trm .
   op _<- delete(_) : Databasechan PrivData -> Guard [ctor] .
   op _<- getdata(_) : Databasechan Tags -> Guard [ctor] .
   op _._ : Guard Trm -> Trm [ctor] .
+
+  eq A ?(B) . T = A{0} ?(B). T .
+  eq X !(B) . T = X !(B{0}) . T .
+	eq A !(Y) . T = A{0} !(Y) . T .
+	eq A !(B). T = A{0}!(B{0}). T .
   ***replication process
   op * _ : Trm -> Trm [ frozen prec 17] .
   ***name binding process
   op (v_:_) : Channel Trm -> Trm .
 
-  sort TrmProcess .
 
+  sort TrmProcess .
+ op ([_==_](_;_)) : Channel Channel Trm Trm  -> Trm [frozen(3 4)] .
+ --- normal form
+ ceq [Y == X](T ; T') = [X == Y](T ; T') if Y : Data /\ not X :: Data .
+--- shortcuts for binding to the closest binder
+	op ([_==_](_;_)) : ChanId Channel Trm Trm  -> Trm [frozen(3 4)] .
+	op ([_==_](_;_)) : ChanId Channel Trm Trm -> Trm [frozen(3 4)] .
+	op ([_==_](_;_)) : Channel ChanId Trm Trm -> Trm [frozen(3 4)] .
+	eq [A == X](T ; T') = [A{0} == X](T ; T') .
+	eq [X == A](T ; T') = [X == A{0}](T ; T') .
+	eq [A == B](T ; T') = [A{0} == B{0}](T ; T') .
+
+  --- shortcuts without else branch
+  	op [_==_]_ : Channel Channel Trm -> Trm [frozen(3) prec 17] .
+  	op [_=/=_]_ : Channel Channel Trm	-> Trm [frozen(3) prec 17] .
+  	eq [X == Y]T = [X == Y] (T ; nil) .
+  	eq [X =/= Y]T = [X == Y] (nil ; T) .
+
+  	--- shortcuts without else branch and for binding to the closest binder
+  	op [_==_]_ : ChanId Channel Trm 	-> Trm [frozen(3) prec 17] .
+  	op [_==_]_ : ChanId ChanId Trm -> Trm [frozen(3) prec 17] .
+  	op [_==_]_ : Channel ChanId Trm	-> Trm [frozen(3) prec 17] .
+  	op [_=/=_]_ : ChanId Channel Trm -> Trm [frozen(3) prec 17] .
+  	op [_=/=_]_ : ChanId ChanId Trm	-> Trm [frozen(3) prec 17] .
+  	op [_=/=_]_ : Channel ChanId Trm 	-> Trm [frozen(3) prec 17] .
+  	eq [A == Y]T = [A{0} == Y] T .
+  	eq [Y == A]T = [Y == A{0}] T .
+  	eq [A == B]T = [A{0} == B{0}] T .
+  	eq [A =/= Y]T = [A{0} =/= Y] T .
+  	eq [Y =/= A]T = [Y =/= A{0}] T .
+  	eq [A =/= B]T = [A{0} =/= B{0}] T .
+
+  op 0S : -> TrmProcess [ctor ] .
   op _[[ _ ]] : Entity Trm  -> TrmProcess [ctor] .
   op _[[ _ ]] : Uid Trm -> TrmProcess [ctor] .
   op _ || _ : TrmProcess TrmProcess -> TrmProcess [ctor] .
   op New _(_) : EntityChan TrmProcess -> TrmProcess [ctor] .
+
 
  ***Global state
 
@@ -430,46 +479,43 @@ vars T T' : Trm .
 
   op (_,<_,_>) -> _ : clk ConsentSet Database TrmProcess -> System [ctor] .
 
-var SUBST : Sub .
-vars X Y : Channel .
-vars C C' : ChanSet .
-vars A B : ChanId .
 
-op union : ChanSet ChanSet -> ChanSet .
-eq union(C, C') = C, C' .
 
-op insert : Channel ChanSet -> ChanSet .
-eq insert(X, empty) = X .
-eq insert(X, C ) = (X, C)  .
+  op union : ChanSet ChanSet -> ChanSet .
+  eq union(C, C') = C, C' .
 
-op delete : Channel ChanSet -> ChanSet .
-eq delete(X, X) = empty .
-eq delete(X, (X, C)) = delete(X, C) .
-eq delete(X, C) = C [owise] .
+  op insert : Channel ChanSet -> ChanSet .
+  eq insert(X, empty) = X .
+  eq insert(X, C ) = (X, C)  .
 
+  op delete : Channel ChanSet -> ChanSet .
+  eq delete(X, X) = empty .
+  eq delete(X, (X, C)) = delete(X, C) .
+  eq delete(X, C) = C [owise] .
+
+***Free channels
   ops fn : Trm -> ChanSet .
   	eq fn(T) = empty .
   	eq fn(* T) = fn(T) .
-  	eq fn(T || T') = union(fn(T), fn(T')) .
+  	eq fn(T | T') = union(fn(T), fn(T')) .
   	eq fn((v A : T)) = [shiftdown A] delete(A{0}, fn(T)) .
   	eq fn( X ? (A). T) = insert(X, [shiftdown A] delete(A{0}, fn(T))) .
   	eq fn( X ! (Y). T) = insert(X, insert(Y, fn(T))) .
-  	***eq fn([X == Y] (P1 ; P2)) =
-  	***insert(X, insert(Y, union(fn(P1), fn(P2)))) .
+    eq fn([X == Y] (T ; T')) = insert(X, insert(Y, union(fn(T), fn(T')))) .
 
   op __ : Sub Trm -> Trm [prec 16] .
   eq SUBST nil = nil .
 	eq SUBST (* T) = * (SUBST T) .
-  eq SUBST (T || T') = (SUBST T) || (SUBST T') .
+  eq SUBST (T | T') = (SUBST T) | (SUBST T') .
   eq SUBST (v A : T) = v A : [lift A SUBST] T .
 	eq SUBST ( X ? (A). T) = (SUBST X) ? (A). [lift A SUBST] T .
   eq SUBST (X ! (Y). T) = (SUBST X) ! (SUBST Y). SUBST T .
+  eq SUBST ([X == Y] (T ; T')) = [SUBST X == SUBST Y] (SUBST T ; SUBST T') .
 
 endfm
 
-
-
 fmod AUXILIARY-FUNC is
+protecting GCLock .
 protecting PRIV_DATA .
 protecting CONSENT .
 protecting CENTRAL-DATABASE .
@@ -484,14 +530,17 @@ var ES : EntitySet .
 var AcSet : ActionSet .
 var R R1 : Retention .
 var CnSet : ConsentSet .
-var DL : DataList .
+var DL  DL' : DataList .
+var GC : clk .
+
 ops Use Collect Store Transfer Delete : -> ActionSet .
+***user function
 op users(_) : Tags -> UidSet [ctor ] .
 eq users(tags(U,P)) = U .
-
+***purpose function
 op purposes(_) : Tags -> PurposeSet [ctor ] .
 eq purposes(tags(U,P)) = P .
-
+***
 op Act(_,_,_,_) : ConsentSet Entity Uid PurposeSet -> ActionSet .
 ceq Act(((U -> ((ES, AcSet, P), PSet) : R),CnSet), eta,U1, P') = AcSet if (eta in ES) /\ P' subset P /\ U == U1 .
 eq Act(((U -> ((ES, AcSet, P), PSet) : R),CnSet), eta,U1, P') = empty [owise] .
@@ -513,15 +562,42 @@ op datamap (_,_,_) : Uid Data Database -> Database [ctor] .
 ceq datamap(U1, D, (U -> DL) ;; Db ) = (U -> union(DL, D)) ;; Db if U1 == U .
 eq datamap(U1, D, (U -> DL) ;; Db ) = (U -> DL) ;; Db [owise] .
 
+op canadd(_,_,_) : Uid Data Database -> Bool [ctor] .
+ceq canadd(U1, D, (U -> DL) ;; Db ) = true if U1 == U .
+eq canadd(U1, D, (U -> DL) ;; Db ) = false [owise] .
+
 op Adddata (_,_,_) : UidSet Data Database -> Database [ctor] .
-eq Adddata((U1,US), D, Db ) =  uniondb(datamap(U1, D, Db ) ;; datamap(US, D, Db )) .
-***ceq Adddata((U1,US), D, Db ) =  false [owise] .
+ceq Adddata((U1,US), D, Db ) =  datamap(U1, D, Db);; datamap(US, D, Db)  if canadd(U1, D, Db) == true /\  canadd(US, D, Db) == true  .
+eq Adddata((U1,US), D, Db ) =  Db [owise] .
+
 ***Delete functions
 op delmap(_,_) : Uid Database -> Database [ctor] .
 ceq delmap(U1, ((U -> DL) ;; Db)) = ((U -> emp) ;; Db) if U1 == U .
 eq delmap(U1, ((U -> DL) ;; Db)) = ((U -> DL) ;; Db) [owise] .
 
-***op checkRet
+op candel (_,_,_) : Uid Data Database -> Bool [ctor] .
+ceq candel(U1, D, (U -> DL) ;; Db ) = true if U1 == U /\ D in DL .
+eq candel(U1, D, (U -> DL) ;; Db ) = false [owise] .
+
+op del : Data DataList -> DataList .
+eq del(D, (D,,DL)) = del(D,DL) .
+eq del(D, DL) = DL .
+
+op deldata(_,_,_) : UidSet Data Database -> Database [ctor] .
+ceq deldata((U1,US), D, ((U1 -> DL) ;; (US -> DL') ;; Db) ) =  (U1 -> del(D, DL) ) ;; (US -> del(D, DL') ) ;; Db
+if candel(U1, D, Db) == true /\  candel(US, D, Db) == true  .
+eq deldata ((U1,US), D, Db) =  Db  .
+
+
+op Retok(_,_,_,_) : Uid ConsentSet Database clk -> Bool .
+***ceq Retok(U1,((U -> PSet : R),CnSet), Db,GC) = true if U1 == U /\ R <= GC .
+eq Retok(U1,((U -> PSet : R),CnSet), Db,GC) = false [owise] .
+
+op checkRetalluser(_,_,_,_) : UidSet Database clk ConsentSet -> Bool .
+ceq checkRetalluser((U1,US), Db, GC,CnSet) = true if Retok(U1, CnSet, Db, GC) == true /\  Retok(US, CnSet, Db , GC) == true .
+eq checkRetalluser((U1,US), Db, GC, CnSet ) = false [owise] .
+
+
 
 endfm
 
@@ -531,11 +607,18 @@ protecting AUXILIARY-FUNC .
 protecting CONCAL-TRMS .
 
 vars X Y Z : Channel .
+vars F : Entity .
 vars A B : ChanId .
 var SUBST : Sub .
 var D : Data .
 vars XS YS : ChanSet .
-vars T T1 T2 T3 T4 : Trm .
+vars T T1 T1' T' T2 T3 T4 : Trm .
+
+	------------- Structural congruence -------------
+	***eq ! nil = nil .
+	***(eq (v A : T) nil = nil .
+	eq (v A : T) 0S = 0S .
+	eq R[0S] = 0S .)
 
 ------------- Labels -------------
 sorts Label Conlabel Dblabel Timelabel Stdlabel .
@@ -557,10 +640,22 @@ op store_(_) : Databasechan PrivData -> Label  .
 op delete_(_) : Databasechan PrivData -> Label  .
 op getdata_(_) : Databasechan Tags -> Label  .
 
+***(ops fn bn : Label -> Set{Channel} .
+	eq fn(silent) = empty .
+	eq fn(in X(A)) = X .
+	eq fn(out X(Y)) = insert(X, Y) .
+	eq fn(vout X(Y : T)) = X .
+	eq bn(silent) = empty .
+	eq bn(in X(A)) = empty . ---TODO: is this correct?
+	eq bn(out X(Y)) = empty .
+	eq bn(vout X(Y : T)) = Y .)
+
+
+
 var P : Policy .
 var Pd : PrivData .
 var tg : Tags .
-var E E' : Entity .
+var E : Entity .
 var N : Nat .
 var CnSet : ConsentSet .
 var Db Db' : Database .
@@ -587,29 +682,76 @@ op {_}_ : Label Trm -> Trm .
 
 crl [l-Inp] :
   (gclk, < CnSet,Db > ) -> E [[ X ? (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {in X(PrivateData(e,tg))}  T ]]
-  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect ) in A(CnSet,E,US, PrSet) .
+  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect ) in A(CnSet,E,US, PrSet) /\ checkRetalluser(US,Db,gclk,CnSet) == true .
 
 crl [l-out] :
-  (gclk, < CnSet,Db > ) -> E [[ X ! (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {out X(PrivateData(e,tg))}  T ]]
-  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect , Transfer ) in A(CnSet,E,US, PrSet) .
+  (gclk, < CnSet,Db > ) -> E [[ X ^ F ! (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {out X(PrivateData(e,tg))}  T ]]
+  if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Transfer ) in A(CnSet,E,US, PrSet) /\(Use, Collect ) in A(CnSet,F,US, PrSet)
+  /\ checkRetalluser(US,Db,gclk,CnSet) == true .
+***(crl	[Rep]	: (gclk, < CnSet,Db > ) -> E [[ * T ]]  => (gclk, < CnSet,Db > ) -> E [[ {l} T1 | * T ]]
+if T => {l} T1 .
 
-***rl	[Rep]	: (gclk, < CnSet,Db > ) -> E [[ * T ]]  => (gclk, < CnSet,Db > ) -> E [[ {l} T1 || * T ]] .
-***if T => {l} T1 .
+crl	[CondT]	:  (gclk, < CnSet,Db > ) -> E [[ [X == X] (T ; T1)]] => {l} T'
+if T => {l} T ' .
 
-***rl [CommP]	: (gclk, < CnSet,Db > ) -> E [[ T3 || T4 ]]  => (gclk, < CnSet,Db > ) -> E [[ {silent} ([A := Z] T) || T1 ]] .
-	***if T3 => {in X(A)} T /\ T4 => {out X(Z)} T1 .
+crl	[CondF]	: (gclk, < CnSet,Db > ) -> E [[  [X == Y] (T ; T1) ]] => {l} T1'
+if X =/= Y /\ T1 => {l} T1' .
+
+crl [CommP]	: (gclk, < CnSet,Db > ) -> E [[ T3 | T4 ]]  => (gclk, < CnSet,Db > ) -> E [[ {silent} ([A := Z] T) | T1 ]]
+if T3 => {in X(A)} T /\ T4 => {out X(Z)} T1 .
+
+crl	[ResNP]	: (v A : T) P
+				=> {[shiftdown A] l} (v A : T) P'
+		if P => {l} P'
+		/\ not A{0} in fn(l) .
+	crl	[ResNS]	: (v A : T) S
+				=> {[shiftdown A] l} (v A : T) S'
+		if S => {l} S'
+		/\ not A{0} in fn(l) .
+	crl [OpenP]:(v A : T) P
+				=> {vout X(A{0} : T)} P'
+		if P => {out X(A{0})} P' .
+	crl [OpenS]:(v A : T) S
+				=> {vout X(A{0} : T)} S'
+		if S => {out X(A{0})} S' .
+
+    crl [CommS]	: NES1 || NES2
+				=> {silent} ([A := Z] S1) || S2
+		if NES1 => {in X(A)} S1
+		/\ NES2 => {out X(Z)} S2 .
+	crl [CloseP]: NEP1 | NEP2
+				=> {silent} (v IDof(Z) : T)(([A := Z][shiftup IDof(Z)] P1) | P2)
+		if NEP1 => {in X(A)} P1
+		/\ NEP2 => {vout X(Z : T)} P2 .
+	crl [CloseS]: NES1 || NES2
+				=> {silent} (v IDof(Z) : T)(([A := Z][shiftup IDof(Z)] S1) || S2)
+		if NES1 => {in X(A)} S1
+		/\ NES2 => {vout X(Z : T)} S2 .
+	crl	[ParP]	: NEP1 | NEP2
+				=> {l} P1 | NEP2
+		if NEP1 => {l} P1
+		/\ intersection(bn(l), fn(NEP2)) = empty .
+	crl	[ParS]	: NES1 || NES2
+				=> {l} S1 || NES2
+		if NES1 => {l} S1
+		/\ intersection(bn(l), fn(NES2)) = empty .)
+
 
 crl [l-storedata] :
-    (gclk, < CnSet,Db > ) -> E [[ X <- store(PrivateData(e,tg)) . T ]]  => (gclk, < CnSet, Adddata (US,PrivateData(e,tg), Db ) > ) -> E [[ {store X(PrivateData(e,tg))}  T ]]
-    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) .
+    (gclk, < CnSet,Db > ) -> E [[ X <- store(PrivateData(e,tg)) . T ]]  =>
+    (gclk, < CnSet, Adddata (US,PrivateData(e,tg), Db) > ) -> E [[ {store X(PrivateData(e,tg))}  T ]]
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet)
+    /\ checkRetalluser(US,Db,gclk,CnSet) == true .
 
 crl [l-deletedata] :
-    (gclk, < CnSet,Db > ) -> E [[ X <- delete(PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {store X(PrivateData(e,tg))}  T ]]
-        if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Delete ) in A(CnSet,E,US, PrSet) .
+    (gclk, < CnSet,Db > ) -> E [[ X <- delete(PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > )
+    -> E [[ {store X(PrivateData(e,tg))}  T ]]
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Delete ) in A(CnSet,E,US, PrSet)
+    /\ checkRetalluser(US,Db,gclk,CnSet) == true .
 
 crl [l-getdata] :
     (gclk, < CnSet,Db > ) -> E [[ X <- getdata(tg) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {getdata X(tg)}  T ]]
-    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) .
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) /\ checkRetalluser(US,Db,gclk,CnSet) == true .
 
 rl [l-Addpol] :
     (gclk, < CnSet, Db > ) -> E [[ X addCon(p) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {addCon X(p)}  T ]] .
