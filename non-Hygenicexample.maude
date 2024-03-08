@@ -1,0 +1,32 @@
+load Pical.maude
+
+mod CASE-STUDYEXAMPLE is
+protecting CONCAL-TRMS  .
+protecting CONCAL-SORTS .
+protecting CONCAL-PROCESS .
+
+
+ops b^lab c^nurse d^doctor : -> EntityChan .
+ops doctor nurse patient lab  : -> Entity .
+ops p1 p2 p3 p4 : -> Policy .
+ops n n1 n2 : -> Retention .
+ops a b c d : -> Channel .
+ops Alice Bob Carl : -> Uid .
+ops trt lab Hosp : -> Purpose .
+ops pd pd1 pd2 : -> PrivData .
+ops G : -> clk .
+
+op CN : -> ConsentSet .
+eq CN = (Alice -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)): 100) ,
+        (Bob -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 200),
+        (Carl -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 300) .
+op DB : -> Database .
+
+eq DB = Alice -> (pd) ;; Bob -> (pd1) ;; Carl -> (pd2) .
+
+op S : -> System .
+
+eq S = (G , < CN , DB >) -> doctor [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil  ]] ||  lab [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil ]]
+|| patient [[ a addCon(p1). a addRet(n). b^lab ! (pd). nil ]] || nurse [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil ]] .
+
+endm
