@@ -266,6 +266,7 @@ sort Consent NeConsentSet ConsentSet .
 subsort Consent < NeConsentSet < ConsentSet .
 
 op (_->_:_) : Uid SetPl Retention ->  Consent [ctor ] .
+op emp : -> Retention .
 op none : -> ConsentSet [ctor] . *** Empty multiset
 op _,_ : ConsentSet ConsentSet -> ConsentSet [ctor assoc comm id: none] .
 op _,_ : NeConsentSet NeConsentSet -> NeConsentSet [ctor assoc comm id: none] .
@@ -321,8 +322,9 @@ sorts Instances Labels Ticks clk Date .
 subsort Labels < Date .
 sort month day year .
 subsort month day year < Nat .
+subsort clk < Nat .
 op date<_,_,_> : day month year -> Date .
-op clk<_,_,_> : Instances Labels Ticks -> clk .
+***op clk<_,_,_> : Instances Labels Ticks -> clk .
 endfm
 
 
@@ -586,7 +588,7 @@ eq del(D, DL) = DL .
 op deldata(_,_,_) : UidSet Data Database -> Database [ctor] .
 ceq deldata((U1,US), D, ((U1 -> DL) ;; (US -> DL') ;; Db) ) =  (U1 -> del(D, DL) ) ;; (US -> del(D, DL') ) ;; Db
 if candel(U1, D, Db) == true /\  candel(US, D, Db) == true  .
-eq deldata ((U1,US), D, Db) =  Db  .
+eq deldata ((U1,US), D, Db) =  Db [owise] .
 
 
 op Retok(_,_,_,_) : Uid ConsentSet Database clk -> Bool .
@@ -628,17 +630,17 @@ subsort  Conlabel Dblabel Timelabel Stdlabel < Label .
 subsort Label < Guard .
 var l l1 l2 l3 : Label .
 
-op silent : -> Label .
+op silent : -> Stdlabel .
 op e#T : -> Timelabel .
-op in _(_) : Channel ChanId -> Label .
-op out _(_) : EntityChan Channel -> Label .
-op addCon_(_) : Channel Policy -> Label .
-op rmvCon_(_) : Channel Policy -> Label  .
-op addRet_(_) : Channel Nat -> Label  .
-op updRet_(_) : Channel Nat -> Label  .
-op store_(_) : Databasechan PrivData -> Label  .
-op delete_(_) : Databasechan PrivData -> Label  .
-op getdata_(_) : Databasechan Tags -> Label  .
+op in _(_) : Channel ChanId -> Stdlabel .
+op out _(_) : EntityChan Channel -> Stdlabel .
+op addCon_(_) : Channel Policy -> Conlabel .
+op rmvCon_(_) : Channel Policy -> Conlabel  .
+op addRet_(_) : Channel Nat -> Conlabel  .
+op updRet_(_) : Channel Nat -> Conlabel  .
+op store_(_) : Databasechan PrivData -> Dblabel  .
+op deletec_(_) : Databasechan PrivData -> Dblabel  .
+op getdata_(_) : Databasechan Tags -> Dblabel  .
 
 ***(ops fn bn : Label -> Set{Channel} .
 	eq fn(silent) = empty .
@@ -656,7 +658,8 @@ var P : Policy .
 var Pd : PrivData .
 var tg : Tags .
 var E : Entity .
-var N : Nat .
+var U U' : Uid .
+var N N' : Nat .
 var CnSet : ConsentSet .
 var Db Db' : Database .
 var gclk  gclk' : clk .
@@ -664,6 +667,8 @@ var e : Expr .
 var US : UidSet .
 var PrSet : PurposeSet .
 var p p1 : Policy .
+var PSet PSet' : SetPl .
+var R R' : Retention .
 op __ : Sub Label -> Label [prec 22] .
 	eq SUBST silent = silent .
   eq SUBST ( in X(A)) = in SUBST X(A) .
@@ -673,7 +678,7 @@ op __ : Sub Label -> Label [prec 22] .
   eq SUBST ( addRet X(N)) = addRet X(N) .
   eq SUBST ( updRet X(N)) = updRet X(N) .
   eq SUBST ( store X(Pd)) = store X(Pd) .
-  eq SUBST ( delete X(Pd)) = delete X(Pd) .
+  eq SUBST ( deletec X(Pd)) = deletec X(Pd) .
   eq SUBST ( getdata X(tg)) = getdata X(tg) .
 
 ------------- Labelled transitions -------------
@@ -688,13 +693,14 @@ crl [l-out] :
   (gclk, < CnSet,Db > ) -> E [[ X ^ F ! (PrivateData(e,tg)) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {out X(PrivateData(e,tg))}  T ]]
   if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Transfer ) in A(CnSet,E,US, PrSet) /\(Use, Collect ) in A(CnSet,F,US, PrSet)
   /\ checkRetalluser(US,Db,gclk,CnSet) == true .
-***(crl	[Rep]	: (gclk, < CnSet,Db > ) -> E [[ * T ]]  => (gclk, < CnSet,Db > ) -> E [[ {l} T1 | * T ]]
-if T => {l} T1 .
 
-crl	[CondT]	:  (gclk, < CnSet,Db > ) -> E [[ [X == X] (T ; T1)]] => {l} T'
-if T => {l} T ' .
 
-crl	[CondF]	: (gclk, < CnSet,Db > ) -> E [[  [X == Y] (T ; T1) ]] => {l} T1'
+***crl	[Rep]	: (gclk, < CnSet,Db > ) -> E [[ * T ]]  => (gclk, < CnSet,Db > ) -> E [[ {l} T1 | * T ]] if T => {l} T1 .
+
+***crl	[CondT]	:  (gclk, < CnSet,Db > ) -> E [[ [X == X] (T ; T1)]] => {l} T'
+***if T => {l} T ' .
+
+***(crl	[CondF]	: (gclk, < CnSet,Db > ) -> E [[  [X == Y] (T ; T1) ]] => {l} T1'
 if X =/= Y /\ T1 => {l} T1' .
 
 crl [CommP]	: (gclk, < CnSet,Db > ) -> E [[ T3 | T4 ]]  => (gclk, < CnSet,Db > ) -> E [[ {silent} ([A := Z] T) | T1 ]]
@@ -749,19 +755,52 @@ crl [l-deletedata] :
     if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Delete ) in A(CnSet,E,US, PrSet)
     /\ checkRetalluser(US,Db,gclk,CnSet) == true .
 
-crl [l-getdata] :
+crl [lin-getdata] :
     (gclk, < CnSet,Db > ) -> E [[ X <- getdata(tg) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {getdata X(tg)}  T ]]
-    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Store ) in A(CnSet,E,US, PrSet) /\ checkRetalluser(US,Db,gclk,CnSet) == true .
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect ) in A(CnSet,E,US, PrSet) /\ checkRetalluser(US,Db,gclk,CnSet) == true .
+
+crl [lin-getdata] :
+    (gclk, < CnSet,Db > ) -> E [[ X <- getdata(tg) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {getdata X(tg)}  T ]]
+    if  US := Users(tg)  /\ PrSet := Purposes(tg) /\ (Use, Collect ) in A(CnSet,E,US, PrSet) /\ checkRetalluser(US,Db,gclk,CnSet) == true .
+
+op insertPol (_,_,_) : ConsentSet SetPl Uid -> ConsentSet .
+ceq insertPol(((U -> PSet : R),CnSet), PSet' , U') = ((U -> union(PSet, PSet') : R),CnSet) if U == U' .
+eq insertPol(((U -> PSet : R),CnSet), PSet' , U') = ((U -> PSet : R),CnSet) [owise] .
+
+op rmvpol ( _,_,_) : ConsentSet SetPl Uid -> ConsentSet .
+ceq insertPol(((U -> PSet : R),CnSet), PSet' , U') = ((U -> delete(PSet, PSet') : R),CnSet) if U == U' .
+eq insertPol(((U -> PSet : R),CnSet), PSet' , U') = ((U -> PSet : R),CnSet) [owise] .
+
+op AddRet(_,_,_) : ConsentSet Retention Uid -> ConsentSet .
+ceq AddRet(((U -> PSet : emp),CnSet), R , U') = ((U -> PSet : R ),CnSet) if U == U' .
+eq AddRet(((U -> PSet : emp),CnSet), R , U') = ((U -> PSet : emp ),CnSet) [owise] .
+
+op updRet(_,_,_) : ConsentSet Retention Uid -> ConsentSet .
+ceq updRet(((U -> PSet : R ),CnSet), R' , U') = ((U -> PSet : R' ),CnSet) if U == U' .
+eq updRet(((U -> PSet : R ),CnSet), R , U') = ((U -> PSet : R ),CnSet) [owise] .
 
 rl [l-Addpol] :
-    (gclk, < CnSet, Db > ) -> E [[ X addCon(p) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {addCon X(p)}  T ]] .
+    (gclk, < ((U' -> PSet : R),CnSet) , Db > ) -> U [[ X addCon(p) . T ]]  =>
+    (gclk, < insertPol(((U -> PSet : R),CnSet),p,U), Db > ) -> U [[ {addCon X(p)}  T ]] .
 
 rl [l-rmvpol] :
-    (gclk, < CnSet,Db > ) -> E [[ X rmvCon(p) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {rmvCon X(p)}  T ]] .
+    (gclk, < ((U' -> PSet : R),CnSet) ,Db > ) -> U [[ X rmvCon(p) . T ]]  =>
+    (gclk, < rmvpol(((U -> PSet : R),CnSet),p,U), Db > ) -> U [[ {rmvCon X(p)}  T ]] .
 
 rl [l-AddRet] :
-    (gclk, < CnSet,Db > ) -> E [[ X addRet(N) . T ]]  => (gclk, < CnSet,Db > ) -> E [[ {addRet X(N)}  T ]] .
+    (gclk, < ((U' -> PSet : emp),CnSet),Db > ) -> U [[ X addRet(N) . T ]]  =>
+     (gclk, < AddRet(((U -> PSet : emp),CnSet), N , U),Db > ) -> U [[ {addRet X(N)}  T ]] .
 rl [l-RmvRet] :
-    (gclk, < CnSet,Db > ) -> E [[ X updRet(N) . T ]]  => (gclk, < CnSet, Db > ) -> E [[ {updRet X(N)}  T ]] .
+    (gclk, < ((U' -> PSet : N'),CnSet),Db > ) -> U [[ X updRet(N) . T ]]  =>
+    (gclk, < updRet(((U -> PSet : N' ),CnSet), N , U), Db > ) -> U [[ {updRet X(N)}  T ]] .
+
+crl [l-clocktick] :
+    (gclk, < CnSet , Db > ) -> E [[ e#T  . T ]]  =>
+    (s(gclk), < CnSet, Db > ) -> E [[ {e#T }  T ]] if checkRetalluser(US,Db,gclk,CnSet) == true  .
+
+rl [l-clocktickdelete] :
+  (gclk, < CnSet , Db > ) -> E [[ e#T . T ]]  =>
+  (s(gclk), < CnSet , Db > ) -> E [[ {e#T }  T ]] if checkRetalluser(US,Db,gclk,CnSet) == false .
+
 
 endm
