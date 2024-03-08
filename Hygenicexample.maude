@@ -13,7 +13,11 @@ ops n n1 n2 : -> Retention .
 ops a b c d : -> Channel .
 ops Alice Bob Carl : -> Uid .
 ops trt lab Hosp : -> Purpose .
-ops pd pd1 pd2 : -> PrivData .
+ops pd pd1 pd2 pd3 pd4 : -> PrivData .
+ops k l m n : -> Databasechan .
+ops t t' t'' : -> Tags .
+eq t = tags( (Alice), (trt)) .
+eq t = tags( (Alice), (trt, lab)) .
 ops G : -> clk .
 
 op CN : -> ConsentSet .
@@ -21,12 +25,17 @@ eq CN = (Alice -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,
         (Bob -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 200),
         (Carl -> ((doctor, nurse, lab), (Use, Collect, Store, Transfer ), (trt,lab)) : 300) .
 op DB : -> Database .
+eq G = 100 .
 
 eq DB = Alice -> (pd) ;; Bob -> (pd1) ;; Carl -> (pd2) .
 
 op S : -> System .
 
-eq S = (G , < CN , DB >) -> doctor [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil  ]] ||  lab [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil ]]
-|| patient [[ a addCon(p1). a addRet(n). b^lab ! (pd). nil ]] || nurse [[ a addCon(p1). a addRet(n). b^lab ! (pd) . nil ]] .
+eq S = (G , < CN , DB >) -> doctor [[ d ? (pd1).  k <- getdata(t). k ? (t) . k <- delete(pd1). nil  ]]
+|| lab [[ b ? (pd) . c^nurse ! (pd2) . nil ]]
+|| Alice [[ a addCon(p1). a addRet(n). b^lab ! (pd3 ). nil ]]
+|| Bob  [[ a addCon(p2). a addRet(n). b^lab ! (pd). nil ]]
+|| Carl [[ a addCon(p3). a addRet(n). b^lab ! (pd). nil ]]
+|| nurse [[ c ? (pd1). l <- store (pd). d^doctor ! (pd4) . nil ]] .
 
 endm
